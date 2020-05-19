@@ -746,39 +746,51 @@ Or, if you don't want/need a background service you can just run:
   nginx
 ```
 
-- `Nginx`代理给网关的时候，会丢失请求的`host`信息,手动设置`proxy_set_header Host $host`
 
-```
-
-#user  nobody;
-worker_processes  1;
-
-#pid        logs/nginx.pid;
-
-
-events {
-    worker_connections  1024;
-}
-
+### 在nginx.conf配置上流服务器upstream
+```shell
+vi /mydata/nginx/conf/nginx.conf
 
 http {
-    upstream catmall{
-       server 127.0.0.1:8888;
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #gzip  on;
+    upstream gulimall{
+       server 192.168.56.1:88;
     }
 
-    server {
-        listen       80;
-        server_name  catmall.com;
+    include /etc/nginx/conf.d/*.conf;
+}
+```
 
-        location / {
-	        proxy_set_header HOST $host;
-	        proxy_pass http://catmall;
-            #root   html;
-            #index  index.html index.htm;
-        }
+### 在default.conf配置虚拟主机
+- `Nginx`代理给网关的时候，会丢失请求的`host`信息,手动设置`proxy_set_header Host $host`
+```shell
+server {
+    # 设置监听哪个域名的哪个端口
+    listen       80;
+    server_name  gulimall.com;
+    
+    # 设置转发的目标服务器
+    location / {
+    #    root   /usr/share/nginx/html;
+    #    index  index.html index.htm;
+    #    proxy_pass http://192.168.56.1:10000;
+        proxy_set_header HOST $host;
+        proxy_pass http://gulimall;
     }
-
-    include servers/*;
 }
 ```
 
